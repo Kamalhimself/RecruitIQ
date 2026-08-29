@@ -1,0 +1,33 @@
+# Environment & Secrets
+.env
+*.env
+service_account.json
+credentials.json
+token.json
+drive_credentials.json
+drive_token.json
+
+# Python & Virtual Environments
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+uvicorn.log
+
+# Vector DB
+chroma_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend Node & Build Artifacts
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
