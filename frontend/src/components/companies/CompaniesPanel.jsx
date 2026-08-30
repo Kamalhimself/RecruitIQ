@@ -17,6 +17,46 @@ export default function CompaniesPanel({ clients, onRefresh, setError, setSucces
   const [highlightedClientId, setHighlightedClientId] = useState(null);
   const searchRef = useRef(null);
 
+  // Sorting State
+  const [sortBy, setSortBy] = useState('latest');
+
+  // Compute sorted clients
+  const sortedClients = useMemo(() => {
+    if (!clients || clients.length === 0) return [];
+    const list = [...clients];
+
+    switch (sortBy) {
+      case 'latest':
+        return list.sort((a, b) => {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : a.client_id;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : b.client_id;
+          return tB - tA;
+        });
+      case 'oldest':
+        return list.sort((a, b) => {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : a.client_id;
+          const tB = b.created_at ? new Date(b.created_at).getTime() : b.client_id;
+          return tA - tB;
+        });
+      case 'name-asc':
+        return list.sort((a, b) => (a.client_name || '').localeCompare(b.client_name || '', undefined, { sensitivity: 'base' }));
+      case 'name-desc':
+        return list.sort((a, b) => (b.client_name || '').localeCompare(a.client_name || '', undefined, { sensitivity: 'base' }));
+      case 'person-asc':
+        return list.sort((a, b) => (a.contact_person || '').localeCompare(b.contact_person || '', undefined, { sensitivity: 'base' }));
+      case 'person-desc':
+        return list.sort((a, b) => (b.contact_person || '').localeCompare(a.contact_person || '', undefined, { sensitivity: 'base' }));
+      case 'updated':
+        return list.sort((a, b) => {
+          const tA = a.updated_at ? new Date(a.updated_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : a.client_id);
+          const tB = b.updated_at ? new Date(b.updated_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : b.client_id);
+          return tB - tA;
+        });
+      default:
+        return list;
+    }
+  }, [clients, sortBy]);
+
   // Edit Modal State
   const [editingClient, setEditingClient] = useState(null);
   const [editName, setEditName] = useState('');
@@ -169,65 +209,103 @@ export default function CompaniesPanel({ clients, onRefresh, setError, setSucces
 
       <div className="card">
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <h2 className="card-title">All Clients ({clients.length})</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h2 className="card-title" style={{ margin: 0 }}>All Clients ({clients.length})</h2>
+          </div>
 
-          {/* Company Search Bar */}
-          <div className="search-bar-container" ref={searchRef}>
-            <div className="search-input-wrapper">
-              <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input 
-                type="text"
-                className="input-text"
-                placeholder="Search company & jump to table..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setIsDropdownOpen(true);
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            {/* Sort Control */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18M6 12h12M10 18h4"/>
+                </svg>
+                Sort:
+              </span>
+              <select 
+                className="select" 
+                style={{ 
+                  width: 'auto', 
+                  padding: '7px 12px', 
+                  fontSize: '13px', 
+                  borderRadius: 'var(--radius-md)', 
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-main)',
+                  height: '38px'
                 }}
-                onFocus={() => {
-                  if (searchQuery.trim()) setIsDropdownOpen(true);
-                }}
-              />
-              {searchQuery && (
-                <button 
-                  type="button" 
-                  className="search-clear-btn" 
-                  onClick={() => {
-                    setSearchQuery('');
-                    setIsDropdownOpen(false);
-                  }}
-                  title="Clear search"
-                >
-                  ✕
-                </button>
-              )}
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="latest">Latest Added</option>
+                <option value="oldest">Oldest Added</option>
+                <option value="name-asc">Alphabetical (A → Z)</option>
+                <option value="name-desc">Alphabetical (Z → A)</option>
+                <option value="person-asc">Contact Person (A → Z)</option>
+                <option value="person-desc">Contact Person (Z → A)</option>
+                <option value="updated">Recently Modified</option>
+              </select>
             </div>
 
-            {isDropdownOpen && clientSuggestions.length > 0 && (
-              <div className="search-dropdown">
-                {clientSuggestions.map((c) => (
-                  <div 
-                    key={c.client_id} 
-                    className="search-dropdown-item"
-                    onClick={() => handleSelectClient(c)}
+            {/* Company Search Bar */}
+            <div className="search-bar-container" ref={searchRef}>
+              <div className="search-input-wrapper">
+                <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input 
+                  type="text"
+                  className="input-text"
+                  placeholder="Search company & jump..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.trim()) setIsDropdownOpen(true);
+                  }}
+                />
+                {searchQuery && (
+                  <button 
+                    type="button" 
+                    className="search-clear-btn" 
+                    onClick={() => {
+                      setSearchQuery('');
+                      setIsDropdownOpen(false);
+                    }}
+                    title="Clear search"
                   >
-                    <div className="search-item-company">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                      </svg>
-                      <span>{c.client_name}</span>
-                    </div>
-                    <span className="search-item-count">
-                      {c.contact_person || `#${c.client_id}`}
-                    </span>
-                  </div>
-                ))}
+                    ✕
+                  </button>
+                )}
               </div>
-            )}
+
+              {isDropdownOpen && clientSuggestions.length > 0 && (
+                <div className="search-dropdown">
+                  {clientSuggestions.map((c) => (
+                    <div 
+                      key={c.client_id} 
+                      className="search-dropdown-item"
+                      onClick={() => handleSelectClient(c)}
+                    >
+                      <div className="search-item-company">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                        </svg>
+                        <span>{c.client_name}</span>
+                      </div>
+                      <span className="search-item-count">
+                        {c.contact_person || `#${c.client_id}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
@@ -235,27 +313,76 @@ export default function CompaniesPanel({ clients, onRefresh, setError, setSucces
           <table className="premium-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Company Name</th>
-                <th>Contact Person</th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'latest' ? 'oldest' : 'latest')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to toggle ID / Creation order"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>ID</span>
+                    {sortBy === 'latest' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                    {sortBy === 'oldest' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'name-asc' ? 'name-desc' : 'name-asc')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to toggle Alphabetical sort (A-Z / Z-A)"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Company Name</span>
+                    {sortBy === 'name-asc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                    {sortBy === 'name-desc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'person-asc' ? 'person-desc' : 'person-asc')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Contact Person"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Contact Person</span>
+                    {sortBy === 'person-asc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                    {sortBy === 'person-desc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                  </div>
+                </th>
                 <th>Email Address</th>
                 <th>Phone Number</th>
                 <th>Created By</th>
-                <th>Created On</th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'latest' ? 'oldest' : 'latest')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Created Date"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Created On</span>
+                    {sortBy === 'latest' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                    {sortBy === 'oldest' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                  </div>
+                </th>
                 <th>Modified By</th>
-                <th>Modified On</th>
+                <th 
+                  onClick={() => setSortBy('updated')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Recently Modified"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Modified On</span>
+                    {sortBy === 'updated' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                  </div>
+                </th>
                 <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {clients.length === 0 ? (
+              {sortedClients.length === 0 ? (
                 <tr>
                   <td colSpan="10" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
                     No companies registered yet. Click "Add Company" to get started.
                   </td>
                 </tr>
               ) : (
-                clients.map((c) => {
+                sortedClients.map((c) => {
                   const isHighlighted = highlightedClientId === c.client_id;
                   return (
                     <tr 
