@@ -284,14 +284,19 @@ async def list_candidates(
     limit:  int           = Query(50, ge=1, le=200),
     offset: int           = Query(0, ge=0),
     skill:  Optional[str] = Query(None, description="Filter by skill (partial match)"),
+    jd_id:  Optional[int] = Query(None, description="Filter candidates associated with a specific JD"),
 ):
     """
     Returns a paginated list of candidates.
-    Optionally filter by skill — e.g. ?skill=python
+    Optionally filter by skill or associated JD ID.
     """
     session = Session()
     try:
         q = session.query(Candidate)
+        if jd_id is not None:
+            q = q.join(CandidateJDMapping, CandidateJDMapping.candidate_id == Candidate.candidate_id).filter(
+                CandidateJDMapping.jd_id == jd_id
+            )
         if skill:
             # Postgres ARRAY contains — checks if skill token is in the skills array
             q = q.filter(

@@ -59,13 +59,18 @@ export default function MatchingPanel({ jds, selectedJdId, setSelectedJdId, setE
     }
   };
 
-  const fetchCandidatePool = async () => {
+  const fetchCandidatePool = async (jdId) => {
+    const targetId = jdId || pickerJdId || selectedJdId;
+    if (!targetId) return;
     setLoadingCandidates(true);
     try {
-      const res = await fetch(`${API_BASE}/candidates?limit=200`);
+      const res = await fetch(`${API_BASE}/candidates?jd_id=${targetId}&limit=200`);
       if (res.ok) {
         const data = await res.json();
-        setAllCandidates(data.items || []);
+        const items = data.items || [];
+        setAllCandidates(items);
+        // Pre-select all CVs for this JD by default
+        setSelectedCandidateCodes(items.map(c => c.candidate_code));
       }
     } catch (err) {
       console.error('Failed to load candidates', err);
@@ -354,11 +359,12 @@ export default function MatchingPanel({ jds, selectedJdId, setSelectedJdId, setE
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => {
-                  setPickerJdId(selectedJdId);
+                  const targetId = selectedJdId || (jds[0]?.jd_id ? jds[0].jd_id.toString() : '');
+                  setPickerJdId(targetId);
                   setShowCandidatePicker(true);
-                  fetchCandidatePool();
+                  fetchCandidatePool(targetId);
                 }}
-                disabled={runningMatch}
+                disabled={runningMatch || !selectedJdId}
                 title="Choose specific CVs to match against a JD"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -688,7 +694,11 @@ export default function MatchingPanel({ jds, selectedJdId, setSelectedJdId, setE
                 <select 
                   className="select"
                   value={pickerJdId}
-                  onChange={(e) => setPickerJdId(e.target.value)}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    setPickerJdId(newId);
+                    fetchCandidatePool(newId);
+                  }}
                   disabled={runningMatch}
                 >
                   {jds.map((j) => (
@@ -715,33 +725,39 @@ export default function MatchingPanel({ jds, selectedJdId, setSelectedJdId, setE
                     className="btn btn-secondary btn-sm"
                     onClick={() => setSelectedCandidateCodes(filteredCandidates.map(c => c.candidate_code))}
                   >
-                    Select All
+                    Select All ({filteredCandidates.length})
                   </button>
                   <button 
                     type="button" 
                     className="btn btn-secondary btn-sm"
                     onClick={() => setSelectedCandidateCodes([])}
                   >
-                    Clear
+                    Deselect All
                   </button>
                 </div>
               </div>
 
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                <span>Showing {filteredCandidates.length} candidate profile(s)</span>
+                <span>Showing {filteredCandidates.length} candidate CV(s) for this JD</span>
                 <span style={{ color: 'var(--color-primary)', fontWeight: '600' }}>
-                  {selectedCandidateCodes.length} CV(s) selected
+                  {selectedCandidateCodes.length} of {filteredCandidates.length} selected
                 </span>
               </div>
 
               <div className="candidate-picker-list">
                 {loadingCandidates ? (
                   <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                    <span className="spinner"></span> Loading talent pool...
+                    <span className="spinner"></span> Loading candidate CVs for this JD...
+                  </div>
+                ) : allCandidates.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>📄</div>
+                    <p style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '14px' }}>No candidate CVs uploaded for this Job Description yet.</p>
+                    <p style={{ fontSize: '12px', marginTop: '6px' }}>Click "+ Upload Candidate CV" to upload resumes associated with this role.</p>
                   </div>
                 ) : filteredCandidates.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                    No candidates found matching "{candidateSearchTerm}".
+                    No candidate CVs matching "{candidateSearchTerm}".
                   </div>
                 ) : (
                   filteredCandidates.map((c) => {
