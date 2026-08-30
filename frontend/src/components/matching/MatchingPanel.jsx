@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { API_BASE } from '../../config/api';
+import { formatDate } from '../../utils/formatters';
 
-export default function MatchingPanel({ jds, selectedJdId, setSelectedJdId, setError, setSuccess }) {
+export default function MatchingPanel({ jds, clients = [], selectedJdId, setSelectedJdId, setError, setSuccess }) {
   const [mappings, setMappings] = useState([]);
   const [jdDetails, setJdDetails] = useState(null);
   
@@ -279,50 +280,98 @@ export default function MatchingPanel({ jds, selectedJdId, setSelectedJdId, setE
         </div>
       </div>
 
-      <div className="card" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="form-group" style={{ flex: 1, minWidth: '250px' }}>
-            <label>Select Active Job Specification</label>
-            <select 
-              className="select"
-              value={selectedJdId}
-              onChange={(e) => {
-                setActiveSelectionFilter(null);
-                setSelectedJdId(e.target.value);
-              }}
-            >
-              <option value="" disabled>-- Select a Job Description --</option>
-              {jds.map((j) => (
-                <option key={j.jd_id} value={j.jd_id}>
-                  {j.jd_code} - {j.role_title} ({j.client_name || 'Client'})
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="card" style={{ padding: '20px 24px' }}>
+        <div className="form-group" style={{ marginBottom: activeJd ? '18px' : '0' }}>
+          <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)', marginBottom: '8px', display: 'block' }}>
+            Select Active Job Specification
+          </label>
+          <select 
+            className="select"
+            value={selectedJdId}
+            onChange={(e) => {
+              setActiveSelectionFilter(null);
+              setSelectedJdId(e.target.value);
+            }}
+            style={{ fontSize: '14px', height: '42px' }}
+          >
+            <option value="" disabled>-- Select a Job Description --</option>
+            {jds.map((j) => (
+              <option key={j.jd_id} value={j.jd_id}>
+                {j.jd_code} - {j.role_title} ({j.client_name || 'Client'})
+              </option>
+            ))}
+          </select>
+        </div>
 
-          {activeJd && (
-            <div style={{ display: 'flex', gap: '24px', flex: 2, paddingLeft: '20px', borderLeft: '1px solid var(--border-color)' }}>
-              <div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Target Location</span>
-                <p style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text-main)' }}>{activeJd.location || 'Chennai'}</p>
-              </div>
-              <div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Notice Cap</span>
-                <p style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text-main)' }}>
-                  {activeJd.notice_period_days !== null ? `${activeJd.notice_period_days} Days` : 'No Cap'}
-                </p>
-              </div>
-              <div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Core Skills required</span>
-                <div className="tags-list" style={{ marginTop: '4px' }}>
-                  {activeJd.required_skills?.map((s, idx) => (
-                    <span key={idx} className="tag primary">{s}</span>
-                  ))}
-                </div>
+        {activeJd && (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', 
+            gap: '16px', 
+            paddingTop: '16px', 
+            borderTop: '1px solid var(--border-color)',
+            alignItems: 'start'
+          }}>
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+                Client Company
+              </span>
+              <p style={{ fontWeight: '600', fontSize: '14px', color: 'var(--color-primary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>
+                {activeJd.client_name || clients.find(c => c.client_id === activeJd.client_id)?.client_name || 'Acme Tech Solutions'}
+              </p>
+            </div>
+
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+                Contact Person
+              </span>
+              <p style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-main)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                {activeJd.contact_person || clients.find(c => c.client_id === activeJd.client_id)?.contact_person || 'Not specified'}
+              </p>
+            </div>
+
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+                Created On
+              </span>
+              <p style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-main)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {formatDate(activeJd.created_at)}
+              </p>
+            </div>
+
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+                Target Location
+              </span>
+              <p style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>
+                {activeJd.location || 'Anywhere'}
+              </p>
+            </div>
+
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+                Notice Cap
+              </span>
+              <p style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>
+                {activeJd.notice_period_days !== null ? `${activeJd.notice_period_days} Days` : 'No Cap'}
+              </p>
+            </div>
+
+            <div style={{ gridColumn: 'span 2' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
+                Core Skills Required
+              </span>
+              <div className="tags-list" style={{ marginTop: '4px' }}>
+                {activeJd.required_skills?.map((s, idx) => (
+                  <span key={idx} className="tag primary">{s}</span>
+                ))}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {activeJd && (

@@ -119,6 +119,7 @@ function App() {
         {activeTab === 'matching' && (
           <MatchingPanel 
             jds={jds} 
+            clients={clients}
             selectedJdId={selectedJdId} 
             setSelectedJdId={setSelectedJdId}
             setError={setError} 

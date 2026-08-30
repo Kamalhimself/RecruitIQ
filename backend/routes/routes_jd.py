@@ -41,6 +41,8 @@ def list_jds(limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0))
             "jd_code": jd.jd_code,
             "client_id": jd.client_id,
             "client_name": jd.client.client_name if jd.client else None,
+            "contact_person": jd.client.contact_person if jd.client else None,
+            "contact_email": jd.client.contact_email if jd.client else None,
             "role_title": jd.role_title,
             "required_skills": jd.required_skills,
             "nice_to_have_skills": jd.nice_to_have_skills,
