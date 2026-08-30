@@ -101,6 +101,10 @@ def run_matching(
             results.append({
                 "candidate_code": candidate.candidate_code,
                 "full_name": candidate.full_name,
+                "email": candidate.email,
+                "phone": candidate.phone,
+                "current_location": candidate.current_location,
+                "total_experience": float(candidate.total_experience) if candidate.total_experience is not None else None,
                 "match_score": score.total,
                 "status": mapping.status.value,
                 "explanation": score.explanation,
@@ -140,13 +144,19 @@ def get_matches(jd_id: int, limit: int = Query(50, ge=1, le=200)):
         ).order_by(CandidateJDMapping.match_score.desc().nullslast()).limit(limit).all()
         return [{
             "mapping_id": m.mapping_id,
-            "candidate_code": m.candidate.candidate_code, "full_name": m.candidate.full_name,
+            "candidate_code": m.candidate.candidate_code,
+            "full_name": m.candidate.full_name,
+            "email": m.candidate.email,
+            "phone": m.candidate.phone,
+            "current_location": m.candidate.current_location,
+            "total_experience": float(m.candidate.total_experience) if m.candidate.total_experience is not None else None,
             "match_score": float(m.match_score) if m.match_score is not None else None,
             "skills_score": float(m.skills_score) if m.skills_score is not None else None,
             "experience_score": float(m.experience_score) if m.experience_score is not None else None,
             "notice_period_score": float(m.notice_period_score) if m.notice_period_score is not None else None,
             "location_score": float(m.location_score) if m.location_score is not None else None,
-            "status": m.status.value, "explanation": m.match_explanation,
+            "status": m.status.value,
+            "explanation": m.match_explanation,
         } for m in mappings]
     finally:
         session.close()
