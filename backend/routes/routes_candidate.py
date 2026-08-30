@@ -281,22 +281,29 @@ async def create_candidate(
 
 @router.get("")
 async def list_candidates(
-    limit:  int           = Query(50, ge=1, le=200),
-    offset: int           = Query(0, ge=0),
-    skill:  Optional[str] = Query(None, description="Filter by skill (partial match)"),
-    jd_id:  Optional[int] = Query(None, description="Filter candidates associated with a specific JD"),
+    limit:       int           = Query(50, ge=1, le=200),
+    offset:      int           = Query(0, ge=0),
+    skill:       Optional[str] = Query(None, description="Filter by skill (partial match)"),
+    jd_id:       Optional[int] = Query(None, description="Filter candidates associated with a specific JD"),
+    direct_only: bool          = Query(True, description="When filtering by jd_id, only include CVs directly uploaded for this JD"),
 ):
     """
     Returns a paginated list of candidates.
-    Optionally filter by skill or associated JD ID.
+    Optionally filter by skill, or only CVs directly uploaded for a specific JD.
     """
     session = Session()
     try:
         q = session.query(Candidate)
         if jd_id is not None:
-            q = q.join(CandidateJDMapping, CandidateJDMapping.candidate_id == Candidate.candidate_id).filter(
-                CandidateJDMapping.jd_id == jd_id
-            )
+            if direct_only:
+                q = q.join(CandidateJDMapping, CandidateJDMapping.candidate_id == Candidate.candidate_id).filter(
+                    CandidateJDMapping.jd_id == jd_id,
+                    CandidateJDMapping.is_direct_applicant == True,
+                )
+            else:
+                q = q.join(CandidateJDMapping, CandidateJDMapping.candidate_id == Candidate.candidate_id).filter(
+                    CandidateJDMapping.jd_id == jd_id,
+                )
         if skill:
             # Postgres ARRAY contains — checks if skill token is in the skills array
             q = q.filter(

@@ -64,7 +64,7 @@ export default function MatchingPanel({ jds, selectedJdId, setSelectedJdId, setE
     if (!targetId) return;
     setLoadingCandidates(true);
     try {
-      const res = await fetch(`${API_BASE}/candidates?jd_id=${targetId}&limit=200`);
+      const res = await fetch(`${API_BASE}/candidates?jd_id=${targetId}&direct_only=true&limit=200`);
       if (res.ok) {
         const data = await res.json();
         const items = data.items || [];
