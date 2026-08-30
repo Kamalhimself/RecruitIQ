@@ -170,14 +170,46 @@ async def create_candidate(
             )
 
         if existing:
-            # --- duplicate: just add a new mapping if jd_id given ---
-            candidate   = existing
+            # --- existing candidate: update profile with latest CV data ---
+            candidate = existing
             is_duplicate = True
-            drive_info = {
-                "drive_id": candidate.resume_drive_id,
-                "web_link": None,
-                "path": candidate.resume_file_path,
-            }
+
+            if parsed.get("full_name"):
+                candidate.full_name = parsed["full_name"]
+            if parsed.get("phone"):
+                candidate.phone = parsed["phone"]
+            if parsed.get("total_experience") is not None:
+                candidate.total_experience = parsed["total_experience"]
+            if parsed.get("current_location"):
+                candidate.current_location = parsed["current_location"]
+            if parsed.get("notice_period_days") is not None:
+                candidate.notice_period_days = parsed["notice_period_days"]
+            if parsed.get("skills"):
+                candidate.skills = parsed["skills"]
+
+            candidate.parsed_json = parsed
+            candidate.resume_text = result["raw_text"]
+            candidate.source = source_enum
+            if source_detail:
+                candidate.source_detail = source_detail
+
+            # Upload the updated resume file to Drive
+            safe_name = _sanitise_name(candidate.full_name)
+            ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "pdf"
+            drive_filename = f"{candidate.candidate_code}_{safe_name}.{ext}"
+            try:
+                drive_info = upload_resume_file(
+                    file_bytes, drive_filename, candidate.candidate_code, mime_type=file.content_type
+                )
+                candidate.resume_drive_id = drive_info["drive_id"]
+                candidate.resume_file_path = drive_info["path"]
+            except Exception as exc:
+                logger.warning("Updated resume saved without Drive upload: %s", exc)
+                drive_info = {
+                    "drive_id": candidate.resume_drive_id or "pending",
+                    "web_link": None,
+                    "path": candidate.resume_file_path or f"/TalentPool/pending/{drive_filename}",
+                }
         else:
             # --- new candidate ---
             candidate_code = _next_candidate_code(session)
@@ -216,7 +248,7 @@ async def create_candidate(
             session.flush()   # get candidate_id
             is_duplicate = False
 
-        # --- create mapping if jd_id provided ---
+        # --- create or update mapping if jd_id provided ---
         mapping_created = False
         if jd_id is not None:
             # check this (candidate, jd) pair doesn't already exist
@@ -234,6 +266,8 @@ async def create_candidate(
                 )
                 session.add(mapping)
                 mapping_created = True
+            else:
+                existing_mapping.is_direct_applicant = True
 
         session.commit()
 
