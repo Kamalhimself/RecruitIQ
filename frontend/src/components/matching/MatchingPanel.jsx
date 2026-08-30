@@ -8,10 +8,10 @@ export default function MatchingPanel({ jds, clients = [], selectedJdId, setSele
   
   // Configs
   const [threshold, setThreshold] = useState(70);
-  const [wSkills, setWSkills] = useState(40);
-  const [wExp, setWExp] = useState(25);
-  const [wNotice, setWNotice] = useState(20);
-  const [wLoc, setWLoc] = useState(15);
+  const [wSkills, setWSkills] = useState(50);
+  const [wExp, setWExp] = useState(50);
+  const [wNotice, setWNotice] = useState(0);
+  const [wLoc, setWLoc] = useState(0);
   const [showWeightsConfig, setShowWeightsConfig] = useState(false);
 
   // Targeted / Selected Candidate Matching State
@@ -516,10 +516,10 @@ export default function MatchingPanel({ jds, clients = [], selectedJdId, setSele
                   className="btn btn-secondary btn-sm"
                   style={{ padding: '4px 10px', fontSize: '11px' }}
                   onClick={() => {
-                    setWSkills(40);
-                    setWExp(25);
-                    setWNotice(20);
-                    setWLoc(15);
+                    setWSkills(50);
+                    setWExp(50);
+                    setWNotice(0);
+                    setWLoc(0);
                   }}
                 >
                   Reset Defaults

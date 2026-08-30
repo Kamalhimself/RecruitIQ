@@ -37,10 +37,10 @@ EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 @dataclass
 class MatchingConfig:
     """Configurable scoring parameters, weights, and thresholds."""
-    w_skills: float = 40.0
-    w_experience: float = 25.0
-    w_notice: float = 20.0
-    w_location: float = 15.0
+    w_skills: float = 50.0
+    w_experience: float = 50.0
+    w_notice: float = 0.0
+    w_location: float = 0.0
     
     # Semantic similarity contribution within skills component (0.0 to 1.0)
     # Calibrated ranking alignment signal
@@ -65,7 +65,7 @@ class MatchingConfig:
         """Return normalized weights summing to 100."""
         total = self.w_skills + self.w_experience + self.w_notice + self.w_location
         if total <= 0:
-            return 40.0, 25.0, 20.0, 15.0
+            return 50.0, 50.0, 0.0, 0.0
         return (
             (self.w_skills / total) * 100.0,
             (self.w_experience / total) * 100.0,
@@ -617,10 +617,10 @@ def score_candidate(
     """
     if config is None:
         config = MatchingConfig(
-            w_skills=w_skills if w_skills is not None else 40.0,
-            w_experience=w_experience if w_experience is not None else 25.0,
-            w_notice=w_notice if w_notice is not None else 20.0,
-            w_location=w_location if w_location is not None else 15.0,
+            w_skills=w_skills if w_skills is not None else 50.0,
+            w_experience=w_experience if w_experience is not None else 50.0,
+            w_notice=w_notice if w_notice is not None else 0.0,
+            w_location=w_location if w_location is not None else 0.0,
         )
     elif any(w is not None for w in (w_skills, w_experience, w_notice, w_location)):
         config = MatchingConfig(

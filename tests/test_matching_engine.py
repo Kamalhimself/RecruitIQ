@@ -306,7 +306,7 @@ class TestMandatoryRequirementsAndEligibility(unittest.TestCase):
         score_base = score_candidate(cand_without_bonus, jd, semantic_relevance=0.80)
 
         self.assertGreaterEqual(score_bonus.skills, score_base.skills)
-        self.assertLessEqual(score_bonus.skills, 40.0)
+        self.assertLessEqual(score_bonus.skills, 50.0)
         self.assertEqual(score_bonus.breakdown["nice_to_have_ratio"], 1.0)
         self.assertIn("Docker", score_bonus.breakdown["matched_nice_to_have_skills"])
 
@@ -333,10 +333,10 @@ class TestScoringIntegrationAndRegressions(unittest.TestCase):
         score = score_candidate(cand, jd, semantic_relevance=0.90)
         self.assertTrue(score.is_eligible)
         self.assertGreaterEqual(score.total, 90.0)
-        self.assertGreaterEqual(score.skills, 35.0)
-        self.assertEqual(score.experience, 25.0)
-        self.assertEqual(score.notice_period, 20.0)
-        self.assertEqual(score.location, 15.0)
+        self.assertGreaterEqual(score.skills, 40.0)
+        self.assertEqual(score.experience, 50.0)
+        self.assertEqual(score.notice_period, 0.0)
+        self.assertEqual(score.location, 0.0)
         self.assertIn("Python", score.explanation)
         self.assertEqual(score.audit["engine_version"], ENGINE_VERSION)
         self.assertEqual(score.audit["embedding_model"], EMBEDDING_MODEL_NAME)

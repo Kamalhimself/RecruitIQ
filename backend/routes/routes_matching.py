@@ -15,10 +15,10 @@ class RunMatchingRequest(BaseModel):
     candidate_codes: Optional[List[str]] = None
     candidate_ids: Optional[List[str]] = None
     shortlist_threshold: Optional[float] = 70.0
-    w_skills: Optional[float] = 40.0
-    w_experience: Optional[float] = 25.0
-    w_notice: Optional[float] = 20.0
-    w_location: Optional[float] = 15.0
+    w_skills: Optional[float] = 50.0
+    w_experience: Optional[float] = 50.0
+    w_notice: Optional[float] = 0.0
+    w_location: Optional[float] = 0.0
 
 
 @router.post("/jds/{jd_id}/run")
@@ -26,10 +26,10 @@ def run_matching(
     jd_id: int,
     payload: Optional[RunMatchingRequest] = Body(None),
     shortlist_threshold: float = Query(70, ge=0, le=100),
-    w_skills: float = Query(40.0, ge=0, le=100),
-    w_experience: float = Query(25.0, ge=0, le=100),
-    w_notice: float = Query(20.0, ge=0, le=100),
-    w_location: float = Query(15.0, ge=0, le=100),
+    w_skills: float = Query(50.0, ge=0, le=100),
+    w_experience: float = Query(50.0, ge=0, le=100),
+    w_notice: float = Query(0.0, ge=0, le=100),
+    w_location: float = Query(0.0, ge=0, le=100),
     candidate_code: Optional[str] = Query(None, description="Optional single candidate code to match")
 ):
     """Score the full talent pool or specifically selected candidate CVs against one open JD and persist the ranked mappings."""
