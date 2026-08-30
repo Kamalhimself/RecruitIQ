@@ -92,18 +92,28 @@ def fetch_rows() -> list:
         session.close()
 
 
+AUTH_MODE = os.getenv("GOOGLE_DRIVE_AUTH_MODE", "oauth").strip().lower()
+
+
 def get_worksheet():
-    if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        raise RuntimeError(
-            f"Service account file not found at {SERVICE_ACCOUNT_FILE}. "
-            "See README Google Cloud Setup section."
-        )
     if not SHEET_ID:
         raise RuntimeError("GOOGLE_SHEET_ID is not set in .env")
 
-    creds = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES
-    )
+    if AUTH_MODE == "oauth":
+        from backend.services.drive_utils import _oauth_credentials
+        creds = _oauth_credentials()
+    elif AUTH_MODE == "service_account":
+        if not os.path.exists(SERVICE_ACCOUNT_FILE):
+            raise RuntimeError(
+                f"Service account file not found at {SERVICE_ACCOUNT_FILE}. "
+                "See README Google Cloud Setup section."
+            )
+        creds = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    else:
+        raise RuntimeError("GOOGLE_DRIVE_AUTH_MODE must be 'oauth' or 'service_account'.")
+
     gc = gspread.authorize(creds)
     sh = gc.open_by_key(SHEET_ID)
     try:
