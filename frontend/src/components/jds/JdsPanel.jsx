@@ -32,6 +32,52 @@ export default function JdsPanel({ jds, clients, onRefresh, setError, setSuccess
   
   const [loading, setLoading] = useState(false);
 
+  // Sorting State
+  const [sortBy, setSortBy] = useState('created-desc');
+
+  // Compute sorted JDs
+  const sortedJds = useMemo(() => {
+    if (!jds || jds.length === 0) return [];
+    const list = [...jds];
+
+    switch (sortBy) {
+      case 'created-desc':
+        return list.sort((a, b) => {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : (a.jd_id || 0);
+          const tB = b.created_at ? new Date(b.created_at).getTime() : (b.jd_id || 0);
+          return tB - tA;
+        });
+      case 'created-asc':
+        return list.sort((a, b) => {
+          const tA = a.created_at ? new Date(a.created_at).getTime() : (a.jd_id || 0);
+          const tB = b.created_at ? new Date(b.created_at).getTime() : (b.jd_id || 0);
+          return tA - tB;
+        });
+      case 'modified-desc':
+        return list.sort((a, b) => {
+          const tA = a.updated_at ? new Date(a.updated_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : (a.jd_id || 0));
+          const tB = b.updated_at ? new Date(b.updated_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : (b.jd_id || 0));
+          return tB - tA;
+        });
+      case 'modified-asc':
+        return list.sort((a, b) => {
+          const tA = a.updated_at ? new Date(a.updated_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : (a.jd_id || 0));
+          const tB = b.updated_at ? new Date(b.updated_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : (b.jd_id || 0));
+          return tA - tB;
+        });
+      case 'title-asc':
+        return list.sort((a, b) => (a.role_title || '').localeCompare(b.role_title || '', undefined, { sensitivity: 'base' }));
+      case 'title-desc':
+        return list.sort((a, b) => (b.role_title || '').localeCompare(a.role_title || '', undefined, { sensitivity: 'base' }));
+      case 'client-asc':
+        return list.sort((a, b) => (a.client_name || '').localeCompare(b.client_name || '', undefined, { sensitivity: 'base' }));
+      case 'client-desc':
+        return list.sort((a, b) => (b.client_name || '').localeCompare(a.client_name || '', undefined, { sensitivity: 'base' }));
+      default:
+        return list;
+    }
+  }, [jds, sortBy]);
+
   useEffect(() => {
     if (clients.length > 0 && !selectedClientId) {
       setSelectedClientId(clients[0].client_id.toString());
@@ -236,65 +282,104 @@ export default function JdsPanel({ jds, clients, onRefresh, setError, setSuccess
 
       <div className="card">
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <h2 className="card-title">Indexed Specifications ({jds.length})</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h2 className="card-title" style={{ margin: 0 }}>Indexed Specifications ({jds.length})</h2>
+          </div>
 
-          {/* Company Search Bar */}
-          <div className="search-bar-container" ref={searchRef}>
-            <div className="search-input-wrapper">
-              <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input 
-                type="text"
-                className="input-text"
-                placeholder="Search company & jump to table..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setIsDropdownOpen(true);
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            {/* Sort Control */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18M6 12h12M10 18h4"/>
+                </svg>
+                Sort:
+              </span>
+              <select 
+                className="select" 
+                style={{ 
+                  width: 'auto', 
+                  padding: '7px 12px', 
+                  fontSize: '13px', 
+                  borderRadius: 'var(--radius-md)', 
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-main)',
+                  height: '38px'
                 }}
-                onFocus={() => {
-                  if (searchQuery.trim()) setIsDropdownOpen(true);
-                }}
-              />
-              {searchQuery && (
-                <button 
-                  type="button" 
-                  className="search-clear-btn" 
-                  onClick={() => {
-                    setSearchQuery('');
-                    setIsDropdownOpen(false);
-                  }}
-                  title="Clear search"
-                >
-                  ✕
-                </button>
-              )}
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="created-desc">Created On (Newest first)</option>
+                <option value="created-asc">Created On (Oldest first)</option>
+                <option value="modified-desc">Modified On (Recently updated)</option>
+                <option value="modified-asc">Modified On (Oldest modified)</option>
+                <option value="title-asc">Role Title (A → Z)</option>
+                <option value="title-desc">Role Title (Z → A)</option>
+                <option value="client-asc">Client Company (A → Z)</option>
+                <option value="client-desc">Client Company (Z → A)</option>
+              </select>
             </div>
 
-            {isDropdownOpen && companySuggestions.length > 0 && (
-              <div className="search-dropdown">
-                {companySuggestions.map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    className="search-dropdown-item"
-                    onClick={() => handleSelectCompany(item.companyName, item.firstJdId)}
+            {/* Company Search Bar */}
+            <div className="search-bar-container" ref={searchRef}>
+              <div className="search-input-wrapper">
+                <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input 
+                  type="text"
+                  className="input-text"
+                  placeholder="Search company & jump to table..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.trim()) setIsDropdownOpen(true);
+                  }}
+                />
+                {searchQuery && (
+                  <button 
+                    type="button" 
+                    className="search-clear-btn" 
+                    onClick={() => {
+                      setSearchQuery('');
+                      setIsDropdownOpen(false);
+                    }}
+                    title="Clear search"
                   >
-                    <div className="search-item-company">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                      </svg>
-                      <span>{item.companyName}</span>
-                    </div>
-                    <span className="search-item-count">
-                      {item.jds.length} {item.jds.length === 1 ? 'spec' : 'specs'}
-                    </span>
-                  </div>
-                ))}
+                    ✕
+                  </button>
+                )}
               </div>
-            )}
+
+              {isDropdownOpen && companySuggestions.length > 0 && (
+                <div className="search-dropdown">
+                  {companySuggestions.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      className="search-dropdown-item"
+                      onClick={() => handleSelectCompany(item.companyName, item.firstJdId)}
+                    >
+                      <div className="search-item-company">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                        </svg>
+                        <span>{item.companyName}</span>
+                      </div>
+                      <span className="search-item-count">
+                        {item.jds.length} {item.jds.length === 1 ? 'spec' : 'specs'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -302,27 +387,77 @@ export default function JdsPanel({ jds, clients, onRefresh, setError, setSuccess
           <table className="premium-table">
             <thead>
               <tr>
-                <th>Code</th>
-                <th>Role Title</th>
-                <th>Client Company</th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'created-desc' ? 'created-asc' : 'created-desc')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to toggle creation order (Newest / Oldest)"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Code</span>
+                    {sortBy === 'created-desc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                    {sortBy === 'created-asc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'title-asc' ? 'title-desc' : 'title-asc')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Role Title (A-Z / Z-A)"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Role Title</span>
+                    {sortBy === 'title-asc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                    {sortBy === 'title-desc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'client-asc' ? 'client-desc' : 'client-asc')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Client Company"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Client Company</span>
+                    {sortBy === 'client-asc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                    {sortBy === 'client-desc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                  </div>
+                </th>
                 <th>Experience (Min-Max)</th>
                 <th>Notice Period</th>
                 <th>Location</th>
                 <th>Status</th>
-                <th>Created On</th>
-                <th>Modified On</th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'created-desc' ? 'created-asc' : 'created-desc')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Created Date"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Created On</span>
+                    {sortBy === 'created-desc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                    {sortBy === 'created-asc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => setSortBy(sortBy === 'modified-desc' ? 'modified-asc' : 'modified-desc')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Modified Date"
+                >
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Modified On</span>
+                    {sortBy === 'modified-desc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▼</span>}
+                    {sortBy === 'modified-asc' && <span style={{ color: 'var(--color-primary)', fontSize: '10px' }}>▲</span>}
+                  </div>
+                </th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {jds.length === 0 ? (
+              {sortedJds.length === 0 ? (
                 <tr>
                   <td colSpan="10" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
                     No job descriptions found. Use "Ingest JD File" to run LLM extraction and save records.
                   </td>
                 </tr>
               ) : (
-                jds.map((jd) => {
+                sortedJds.map((jd) => {
                   const isHighlighted = highlightedJdId === jd.jd_id;
                   return (
                     <tr 
