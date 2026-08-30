@@ -23,7 +23,7 @@ session = Session()
 # ------------------------------------------------------------
 recruiter = Recruiter(
     full_name="Kamaleswar Sivashanmugam",
-    email="kamaleswar.sivashanmugam@gmail.com",
+    email="kamaleswar@velansys.com",
     role="admin",
 )
 session.add(recruiter)
