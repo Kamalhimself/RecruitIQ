@@ -25,9 +25,23 @@ def get_gmail_service():
 
     credentials_file = os.getenv("GMAIL_CREDENTIALS_FILE", "credentials.json")
     token_file = os.getenv("GMAIL_TOKEN_FILE", "token.json")
-    credentials = Credentials.from_authorized_user_file(token_file, GMAIL_SCOPES) if os.path.exists(token_file) else None
+    credentials = None
+    if os.path.exists(token_file):
+        try:
+            credentials = Credentials.from_authorized_user_file(token_file, GMAIL_SCOPES)
+        except Exception:
+            credentials = None
+
     if credentials and credentials.expired and credentials.refresh_token:
-        credentials.refresh(Request())
+        try:
+            credentials.refresh(Request())
+        except Exception:
+            credentials = None
+            if os.path.exists(token_file):
+                try:
+                    os.remove(token_file)
+                except OSError:
+                    pass
     if not credentials or not credentials.valid:
         if not os.path.exists(credentials_file):
             raise RuntimeError(

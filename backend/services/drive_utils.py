@@ -49,9 +49,21 @@ def _oauth_credentials():
 
     credentials = None
     if os.path.exists(OAUTH_TOKEN_FILE):
-        credentials = Credentials.from_authorized_user_file(OAUTH_TOKEN_FILE, SCOPES)
+        try:
+            credentials = Credentials.from_authorized_user_file(OAUTH_TOKEN_FILE, SCOPES)
+        except Exception:
+            credentials = None
+
     if credentials and credentials.expired and credentials.refresh_token:
-        credentials.refresh(Request())
+        try:
+            credentials.refresh(Request())
+        except Exception:
+            credentials = None
+            if os.path.exists(OAUTH_TOKEN_FILE):
+                try:
+                    os.remove(OAUTH_TOKEN_FILE)
+                except OSError:
+                    pass
     if not credentials or not credentials.valid:
         if not os.path.exists(OAUTH_CREDENTIALS_FILE):
             raise RuntimeError(

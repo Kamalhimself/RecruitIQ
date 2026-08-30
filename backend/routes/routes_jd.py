@@ -228,8 +228,8 @@ async def create_jd(
 
         try:
             drive_info = upload_jd_file(file_bytes, drive_filename, year, mime_type=file.content_type)
-        except (RuntimeError, HttpError) as exc:
-            # Drive setup or quota must not block creating a usable JD record.
+        except Exception as exc:
+            # Drive setup, expired OAuth tokens, or quota must not block creating a usable JD record.
             logger.warning("JD was saved without a Drive file: %s", exc)
             drive_info = {"drive_id": None, "web_link": None, "path": None}
 
