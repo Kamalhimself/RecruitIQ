@@ -276,7 +276,7 @@ export default function JdsPanel({ jds, clients, onRefresh, setError, setSuccess
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          Ingest JD File
+          Upload JD File
         </button>
       </div>
 
@@ -453,7 +453,7 @@ export default function JdsPanel({ jds, clients, onRefresh, setError, setSuccess
               {sortedJds.length === 0 ? (
                 <tr>
                   <td colSpan="10" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
-                    No job descriptions found. Use "Ingest JD File" to run LLM extraction and save records.
+                    No job descriptions found. Use "Upload JD File" to run LLM extraction and save records.
                   </td>
                 </tr>
               ) : (
@@ -539,7 +539,7 @@ export default function JdsPanel({ jds, clients, onRefresh, setError, setSuccess
         <div className="modal-overlay" onClick={() => setShowDrawer(false)}>
           <div className="modal-content" style={{ width: '650px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="card-title">Ingest Job Specification</h2>
+              <h2 className="card-title">Upload Job Specification</h2>
               <button className="close-btn" onClick={() => setShowDrawer(false)}>×</button>
             </div>
 
