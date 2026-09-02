@@ -1,8 +1,8 @@
 # ==============================================================================
 # RecruitIQ Backend - Production Container
-# Multi-stage secure build with spaCy NLP and headless Google API support
+# Fast, secure build with spaCy NLP and headless Google API support
 # ==============================================================================
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -13,23 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-RUN /install/bin/python -m spacy download en_core_web_sm
-
-# ------------------------------------------------------------------------------
-# Final Runtime Stage
-# ------------------------------------------------------------------------------
-FROM python:3.12-slim AS runtime
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy installed wheels and spaCy models from builder stage
-COPY --from=builder /install /usr/local
+RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m spacy download en_core_web_sm
 
 # Security: Create non-privileged service user
 RUN groupadd -g 1001 recruitiq && \
