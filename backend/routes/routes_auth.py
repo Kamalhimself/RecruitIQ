@@ -53,8 +53,8 @@ def google_sso_login(payload: GoogleAuthRequest):
     name = id_info.get("name", email.split("@")[0])
     picture = id_info.get("picture")
 
-    # Domain restriction check if configured
-    allowed_domains_str = os.getenv("ALLOWED_AUTH_DOMAINS", "")
+    # Domain restriction check: strictly enforce velansys.com
+    allowed_domains_str = os.getenv("ALLOWED_AUTH_DOMAINS", "velansys.com")
     if allowed_domains_str:
         allowed_domains = [d.strip().lower() for d in allowed_domains_str.split(",") if d.strip()]
         user_domain = email.split("@")[-1].lower()
@@ -82,7 +82,7 @@ def google_sso_login(payload: GoogleAuthRequest):
             "email": recruiter.email,
             "name": recruiter.full_name,
             "picture": picture,
-            "role": "admin" if "velansys.com" in email else "recruiter",
+            "role": "admin",
         }
         access_token = create_access_token(token_data)
 
@@ -98,7 +98,7 @@ def google_sso_login(payload: GoogleAuthRequest):
 @router.post("/dev-login")
 def dev_login(payload: Optional[DevLoginRequest] = None):
     """
-    Authorized team direct login for testing and production administrators.
+    Authorized team direct login for @velansys.com administrators.
     """
     allow_test = os.getenv("ALLOW_TEST_LOGIN", "true").lower() == "true"
     if not allow_test:
@@ -106,6 +106,12 @@ def dev_login(payload: Optional[DevLoginRequest] = None):
 
     email = (payload and payload.email) or "kamaleswar@velansys.com"
     name = (payload and payload.name) or "Kamaleswar Sivashanmugam"
+
+    if not email.lower().endswith("@velansys.com"):
+        raise HTTPException(
+            status_code=403,
+            detail="Access restricted: only @velansys.com accounts are permitted."
+        )
 
     session = Session()
     try:
