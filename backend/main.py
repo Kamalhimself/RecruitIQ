@@ -88,6 +88,25 @@ app.include_router(workflow_router)
 
 
 # -----------------------------------------------------------------------------
+# Startup Event: Auto-initialize Database Schema if Needed
+# -----------------------------------------------------------------------------
+@app.on_event("startup")
+def on_startup():
+    try:
+        from backend.database.setup_db import get_engine, run_schema
+        from sqlalchemy import text
+        engine = get_engine()
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT to_regclass('public.job_descriptions');")).scalar()
+            if not res:
+                logger.info("First-time boot: initializing PostgreSQL schema...")
+                run_schema()
+                logger.info("PostgreSQL schema initialized successfully.")
+    except Exception as exc:
+        logger.warning("Startup schema check note: %s", exc)
+
+
+# -----------------------------------------------------------------------------
 # Health & Readiness Probes (for Cloud Run / AWS / Docker)
 # -----------------------------------------------------------------------------
 @app.get("/health", tags=["health"])

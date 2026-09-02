@@ -32,7 +32,12 @@ def get_engine():
     )
 
 
-def run_schema(schema_path: str = "schema.sql"):
+def run_schema(schema_path: str = None):
+    if not schema_path:
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        candidate = os.path.join(base_dir, "schema.sql")
+        schema_path = candidate if os.path.exists(candidate) else "schema.sql"
+
     engine = get_engine()
     with open(schema_path, "r") as f:
         schema_sql = f.read()
