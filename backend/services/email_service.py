@@ -26,7 +26,17 @@ def get_gmail_service():
     credentials_file = os.getenv("GMAIL_CREDENTIALS_FILE", "credentials.json")
     token_file = os.getenv("GMAIL_TOKEN_FILE", "token.json")
     credentials = None
-    if os.path.exists(token_file):
+
+    token_json_env = os.getenv("GMAIL_TOKEN_JSON")
+    if token_json_env:
+        try:
+            import json
+            token_data = json.loads(token_json_env)
+            credentials = Credentials.from_authorized_user_info(token_data, GMAIL_SCOPES)
+        except Exception:
+            credentials = None
+
+    if not credentials and os.path.exists(token_file):
         try:
             credentials = Credentials.from_authorized_user_file(token_file, GMAIL_SCOPES)
         except Exception:
@@ -42,7 +52,14 @@ def get_gmail_service():
                     os.remove(token_file)
                 except OSError:
                     pass
+
     if not credentials or not credentials.valid:
+        is_headless = os.getenv("HEADLESS_MODE", "false").lower() == "true" or os.getenv("ENVIRONMENT") in ["production", "staging"]
+        if is_headless:
+            raise RuntimeError(
+                "Gmail OAuth token missing or expired in headless production environment. "
+                "Provide GMAIL_TOKEN_JSON in environment or mount token.json."
+            )
         if not os.path.exists(credentials_file):
             raise RuntimeError(
                 f"Gmail OAuth credentials not found at {credentials_file}. "

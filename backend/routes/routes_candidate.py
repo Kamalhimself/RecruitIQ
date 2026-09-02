@@ -18,7 +18,7 @@ import logging
 import re
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Depends
 from googleapiclient.errors import HttpError
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -28,6 +28,8 @@ from backend.database.setup_db import get_engine
 from backend.database.models import Candidate, CandidateJDMapping, CandidateSource, MappingStatus
 from backend.services.cv_parser import parse_cv, extract_text
 from backend.services.drive_utils_resume import upload_resume_file
+from backend.services.upload_validator import validate_uploaded_file
+from backend.services.auth import get_current_recruiter
 
 router  = APIRouter(prefix="/candidates", tags=["candidates"])
 logger = logging.getLogger(__name__)
@@ -90,6 +92,7 @@ async def parse_cv_preview(file: UploadFile = File(...)):
         parsed            — final LLM-corrected structured output
     """
     file_bytes = await file.read()
+    validate_uploaded_file(file, file_bytes, entity_name="Resume")
     try:
         result = parse_cv(file_bytes, file.filename)
     except ValueError as e:
@@ -113,6 +116,7 @@ async def create_candidate(
     jd_id:         Optional[int]    = Form(None),         # if direct applicant for a specific JD
     source_detail: Optional[str]    = Form(None),         # e.g. "LinkedIn - JD-2026-0001 post"
     uploaded_by:   Optional[int]    = Form(None),         # recruiter_id
+    current_user:  dict             = Depends(get_current_recruiter),
 ):
     """
     Full pipeline:
@@ -129,6 +133,7 @@ async def create_candidate(
         Returns the existing candidate + a "duplicate": true flag.
     """
     file_bytes = await file.read()
+    validate_uploaded_file(file, file_bytes, entity_name="Resume")
 
     # --- normalize optional integer forms (Swagger UI defaults) ---
     if jd_id is not None and jd_id <= 0:
@@ -303,7 +308,7 @@ async def create_candidate(
         logger.exception("Error creating candidate: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail=f"Internal server error creating candidate: {str(exc)}"
+            detail="Internal server error creating candidate profile. Please check log files."
         )
     finally:
         session.close()
@@ -320,6 +325,7 @@ async def list_candidates(
     skill:       Optional[str] = Query(None, description="Filter by skill (partial match)"),
     jd_id:       Optional[int] = Query(None, description="Filter candidates associated with a specific JD"),
     direct_only: bool          = Query(True, description="When filtering by jd_id, only include CVs directly uploaded for this JD"),
+    current_user: dict         = Depends(get_current_recruiter),
 ):
     """
     Returns a paginated list of candidates.
@@ -361,7 +367,10 @@ async def list_candidates(
 # ------------------------------------------------------------------ #
 
 @router.get("/{candidate_code}")
-async def get_candidate(candidate_code: str):
+async def get_candidate(
+    candidate_code: str,
+    current_user: dict = Depends(get_current_recruiter),
+):
     """Fetch a single candidate by their human-readable code (e.g. CAND-00001)."""
     session = Session()
     try:
@@ -397,3 +406,46 @@ async def get_candidate(candidate_code: str):
         return data
     finally:
         session.close()
+
+
+# ------------------------------------------------------------------ #
+#  DELETE /candidates/{id_or_code}  — GDPR / Privacy Deletion        #
+# ------------------------------------------------------------------ #
+
+@router.delete("/{candidate_id_or_code}")
+async def delete_candidate(
+    candidate_id_or_code: str,
+    current_user: dict = Depends(get_current_recruiter),
+):
+    """Delete a candidate profile and associated mappings (GDPR / Privacy retention)."""
+    session = Session()
+    try:
+        candidate = session.query(Candidate).filter(
+            (Candidate.candidate_code == candidate_id_or_code.upper()) |
+            (text("candidate_id::text = :cid").bindparams(cid=candidate_id_or_code))
+        ).first()
+
+        if not candidate:
+            raise HTTPException(status_code=404, detail="Candidate not found.")
+
+        code = candidate.candidate_code
+        name = candidate.full_name
+
+        # Delete mappings
+        session.query(CandidateJDMapping).filter_by(candidate_id=candidate.candidate_id).delete()
+        # Delete candidate
+        session.delete(candidate)
+        session.commit()
+
+        logger.info("Deleted candidate %s (%s)", code, name)
+        return {"deleted": True, "candidate_code": code, "full_name": name}
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.error("Error deleting candidate: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to delete candidate record.")
+    finally:
+        session.close()
+

@@ -12,7 +12,7 @@ import datetime
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Depends
 from googleapiclient.errors import HttpError
 from sqlalchemy import text, func
 from sqlalchemy.orm import sessionmaker
@@ -21,6 +21,8 @@ from backend.database.setup_db import get_engine
 from backend.database.models import JobDescription, JDStatus, Client
 from backend.services.jd_parser import extract_text, parse_jd_with_llm
 from backend.services.drive_utils import upload_jd_file
+from backend.services.upload_validator import validate_uploaded_file
+from backend.services.auth import get_current_recruiter
 
 router = APIRouter(prefix="/jds", tags=["job descriptions"])
 client_router = APIRouter(prefix="/clients", tags=["clients"])
@@ -86,6 +88,7 @@ def create_client(
     contact_email: Optional[str] = Form(None),
     contact_phone: Optional[str] = Form(None),
     created_by: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_recruiter),
 ):
     """Create a new client/company in the database."""
     session = Session()
@@ -177,6 +180,7 @@ async def parse_jd_preview(file: UploadFile = File(...)):
     """Extracts + parses a JD WITHOUT saving anything. Use this first to
     sanity-check the LLM extraction before committing via POST /jds."""
     file_bytes = await file.read()
+    validate_uploaded_file(file, file_bytes, entity_name="Job Description")
     try:
         raw_text = extract_text(file_bytes, file.filename)
         parsed = parse_jd_with_llm(raw_text)
@@ -191,6 +195,7 @@ async def create_jd(
     file: UploadFile = File(...),
     client_id: int = Form(...),
     created_by: Optional[int] = Form(None),
+    current_user: dict = Depends(get_current_recruiter),
 ):
     """Full pipeline: extract text -> parse via LLM -> generate jd_code ->
     upload to Drive -> save to job_descriptions."""
@@ -200,6 +205,7 @@ async def create_jd(
         created_by = None
 
     file_bytes = await file.read()
+    validate_uploaded_file(file, file_bytes, entity_name="Job Description")
 
     try:
         raw_text = extract_text(file_bytes, file.filename)

@@ -43,12 +43,21 @@ def _shared_drive_options(include_search_scope: bool = False) -> dict:
 
 def _oauth_credentials():
     """Load or create a user OAuth token for personal Google Drive uploads."""
+    import json
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
 
     credentials = None
-    if os.path.exists(OAUTH_TOKEN_FILE):
+    token_json_env = os.getenv("GOOGLE_DRIVE_TOKEN_JSON")
+    if token_json_env:
+        try:
+            token_data = json.loads(token_json_env)
+            credentials = Credentials.from_authorized_user_info(token_data, SCOPES)
+        except Exception as exc:
+            logger.warning("Could not parse GOOGLE_DRIVE_TOKEN_JSON: %s", exc)
+
+    if not credentials and os.path.exists(OAUTH_TOKEN_FILE):
         try:
             credentials = Credentials.from_authorized_user_file(OAUTH_TOKEN_FILE, SCOPES)
         except Exception:
@@ -64,7 +73,14 @@ def _oauth_credentials():
                     os.remove(OAUTH_TOKEN_FILE)
                 except OSError:
                     pass
+
     if not credentials or not credentials.valid:
+        is_headless = os.getenv("HEADLESS_MODE", "false").lower() == "true" or os.getenv("ENVIRONMENT") in ["production", "staging"]
+        if is_headless:
+            raise RuntimeError(
+                "Google Drive OAuth token missing or expired in headless production environment. "
+                "Provide GOOGLE_DRIVE_TOKEN_JSON in environment or mount drive_token.json."
+            )
         if not os.path.exists(OAUTH_CREDENTIALS_FILE):
             raise RuntimeError(
                 f"Google OAuth client file not found at {OAUTH_CREDENTIALS_FILE}. "
@@ -85,11 +101,17 @@ def get_drive_service():
         if AUTH_MODE == "oauth":
             creds = _oauth_credentials()
         elif AUTH_MODE == "service_account":
-            if not os.path.exists(SERVICE_ACCOUNT_FILE):
-                raise RuntimeError(f"Service account file not found at {SERVICE_ACCOUNT_FILE}.")
-            creds = service_account.Credentials.from_service_account_file(
-                SERVICE_ACCOUNT_FILE, scopes=SCOPES
-            )
+            sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+            if sa_json:
+                import json
+                sa_data = json.loads(sa_json)
+                creds = service_account.Credentials.from_service_account_info(sa_data, scopes=SCOPES)
+            elif os.path.exists(SERVICE_ACCOUNT_FILE):
+                creds = service_account.Credentials.from_service_account_file(
+                    SERVICE_ACCOUNT_FILE, scopes=SCOPES
+                )
+            else:
+                raise RuntimeError(f"Service account file not found at {SERVICE_ACCOUNT_FILE} and GOOGLE_SERVICE_ACCOUNT_JSON is not set.")
         else:
             raise RuntimeError(
                 "GOOGLE_DRIVE_AUTH_MODE must be 'oauth' or 'service_account'."

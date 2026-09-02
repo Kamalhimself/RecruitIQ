@@ -7,6 +7,8 @@ export default function Sidebar({
   setActiveTab,
   isSidebarCollapsed,
   setIsSidebarCollapsed,
+  currentUser,
+  onLogout,
 }) {
   return (
     <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
@@ -130,9 +132,72 @@ export default function Sidebar({
         </a>
       </nav>
 
-      <div className="sidebar-footer">
-        <p>© 2026 RecruitIQ Admin</p>
-        <p style={{ fontSize: '10px', marginTop: '4px', opacity: 0.5 }}>v1.2.0 (React 19)</p>
+      {currentUser && (
+        <div className="sidebar-user" style={{
+          padding: isSidebarCollapsed ? '10px 6px' : '12px 14px',
+          borderTop: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))',
+          background: 'rgba(0, 0, 0, 0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
+          gap: '10px',
+        }}>
+          {!isSidebarCollapsed ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '600',
+                fontSize: '13px',
+                flexShrink: 0,
+              }}>
+                {currentUser.name ? currentUser.name[0].toUpperCase() : 'U'}
+              </div>
+              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {currentUser.name || 'Recruiter'}
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {currentUser.email}
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onLogout}
+            title="Sign Out"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      <div className="sidebar-footer" style={{ padding: '8px 14px', textAlign: 'center' }}>
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>© 2026 RecruitIQ</p>
       </div>
     </aside>
   );

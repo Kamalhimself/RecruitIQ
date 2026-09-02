@@ -1,11 +1,15 @@
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, Body
+import logging
+from fastapi import APIRouter, HTTPException, Query, Body, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import sessionmaker
 
 from backend.services.matching_engine import SemanticIndex, score_candidate
 from backend.database.models import Candidate, CandidateJDMapping, JobDescription, MappingStatus
 from backend.database.setup_db import get_engine
+from backend.services.auth import get_current_recruiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/matching", tags=["matching"])
 Session = sessionmaker(bind=get_engine())
@@ -30,7 +34,8 @@ def run_matching(
     w_experience: float = Query(50.0, ge=0, le=100),
     w_notice: float = Query(0.0, ge=0, le=100),
     w_location: float = Query(0.0, ge=0, le=100),
-    candidate_code: Optional[str] = Query(None, description="Optional single candidate code to match")
+    candidate_code: Optional[str] = Query(None, description="Optional single candidate code to match"),
+    current_user: dict = Depends(get_current_recruiter),
 ):
     """Score the full talent pool or specifically selected candidate CVs against one open JD and persist the ranked mappings."""
     session = Session()
@@ -124,19 +129,25 @@ def run_matching(
         }
     except RuntimeError as exc:
         session.rollback()
-        raise HTTPException(503, str(exc)) from exc
+        logger.error("Runtime error in matching: %s", exc)
+        raise HTTPException(503, "Matching service unavailable. Please check embedding model configuration.") from exc
     except HTTPException:
         session.rollback()
         raise
     except Exception as exc:
         session.rollback()
-        raise HTTPException(500, str(exc)) from exc
+        logger.exception("Unexpected error in matching for jd_id=%s: %s", jd_id, exc)
+        raise HTTPException(500, "An internal error occurred while processing candidate matching.") from exc
     finally:
         session.close()
 
 
 @router.get("/jds/{jd_id}")
-def get_matches(jd_id: int, limit: int = Query(50, ge=1, le=200)):
+def get_matches(
+    jd_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: dict = Depends(get_current_recruiter),
+):
     session = Session()
     try:
         mappings = session.query(CandidateJDMapping).join(Candidate).filter(

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { API_BASE } from './config/api';
+import { API_BASE, getAuthUser, clearAuthSession } from './config/api';
 import Sidebar from './components/layout/Sidebar';
 import AlertBanner from './components/layout/AlertBanner';
 import CompaniesPanel from './components/companies/CompaniesPanel';
 import JdsPanel from './components/jds/JdsPanel';
 import MatchingPanel from './components/matching/MatchingPanel';
+import LoginPage from './components/auth/LoginPage';
 
 function App() {
   const [theme, setTheme] = useState('dark');
+  const [currentUser, setCurrentUser] = useState(() => getAuthUser());
   const [activeTab, setActiveTab] = useState('clients');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [clients, setClients] = useState([]);
@@ -22,6 +24,16 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Listen for unauthorized session expiration
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setCurrentUser(null);
+      setError('Your session has expired or requires authentication. Please sign in again.');
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
 
   // Auto-clear messages
   useEffect(() => {
@@ -38,10 +50,11 @@ function App() {
     }
   }, [error]);
 
-  // Fetch initial data
+  // Fetch initial data once authenticated
   const fetchClients = async () => {
     try {
       const res = await fetch(`${API_BASE}/clients`);
+      if (res.status === 401) return;
       if (!res.ok) throw new Error('Failed to fetch clients');
       const data = await res.json();
       setClients(data);
@@ -54,6 +67,7 @@ function App() {
   const fetchJds = async () => {
     try {
       const res = await fetch(`${API_BASE}/jds`);
+      if (res.status === 401) return;
       if (!res.ok) throw new Error('Failed to fetch JDs');
       const data = await res.json();
       setJds(data);
@@ -66,9 +80,31 @@ function App() {
   };
 
   useEffect(() => {
-    fetchClients();
-    fetchJds();
-  }, []);
+    if (currentUser) {
+      fetchClients();
+      fetchJds();
+    }
+  }, [currentUser]);
+
+  const handleLogout = () => {
+    clearAuthSession();
+    setCurrentUser(null);
+    setClients([]);
+    setJds([]);
+    setSelectedJdId('');
+  };
+
+  // If not logged in, render the Google Workspace SSO Login Page
+  if (!currentUser) {
+    return (
+      <LoginPage
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          setSuccess(`Welcome back, ${user.name || user.email}!`);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="app-layout">
@@ -80,6 +116,8 @@ function App() {
         setActiveTab={setActiveTab}
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Main Panel Content */}
@@ -119,9 +157,9 @@ function App() {
         {activeTab === 'matching' && (
           <MatchingPanel 
             jds={jds} 
-            clients={clients}
+            clients={clients} 
             selectedJdId={selectedJdId} 
-            setSelectedJdId={setSelectedJdId}
+            setSelectedJdId={setSelectedJdId} 
             setError={setError} 
             setSuccess={setSuccess}
           />

@@ -1,14 +1,17 @@
 """Recruiter-controlled screening email workflow endpoints."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import sessionmaker
 
 from backend.services.email_service import screening_email, send_email
 from backend.database.models import CandidateJDMapping, EmailDirection, EmailHistory, EmailType, MappingStatus
 from backend.database.setup_db import get_engine
+from backend.services.auth import get_current_recruiter
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/workflow", tags=["workflow"])
 Session = sessionmaker(bind=get_engine())
 
@@ -21,7 +24,10 @@ def _mapping_or_404(session, mapping_id: int) -> CandidateJDMapping:
 
 
 @router.post("/mappings/{mapping_id}/screening-email")
-def send_screening_email(mapping_id: int):
+def send_screening_email(
+    mapping_id: int,
+    current_user: dict = Depends(get_current_recruiter),
+):
     """Send a screening email only after a recruiter selects a candidate."""
     session = Session()
     try:
@@ -43,13 +49,22 @@ def send_screening_email(mapping_id: int):
         return {"mapping_id": mapping_id, "sent": True, "gmail_message_id": message_id}
     except RuntimeError as exc:
         session.rollback()
-        raise HTTPException(503, str(exc)) from exc
+        logger.error("Failed to send screening email for mapping %s: %s", mapping_id, exc)
+        raise HTTPException(503, f"Email delivery failed: {exc}") from exc
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Unexpected error sending screening email: %s", exc)
+        raise HTTPException(500, "Failed to send screening email due to an internal error.") from exc
     finally:
         session.close()
 
 
 @router.post("/mappings/{mapping_id}/status/{status}")
-def update_mapping_status(mapping_id: int, status: MappingStatus):
+def update_mapping_status(
+    mapping_id: int,
+    status: MappingStatus,
+    current_user: dict = Depends(get_current_recruiter),
+):
     """Record a recruiter decision; prevents automatic outbound email without approval."""
     session = Session()
     try:
@@ -62,7 +77,10 @@ def update_mapping_status(mapping_id: int, status: MappingStatus):
 
 
 @router.get("/follow-ups-due")
-def follow_ups_due(hours: int = 48):
+def follow_ups_due(
+    hours: int = 48,
+    current_user: dict = Depends(get_current_recruiter),
+):
     """Return screening emails awaiting a reply. Call this from a daily scheduler."""
     session = Session()
     try:
