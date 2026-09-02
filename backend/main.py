@@ -5,7 +5,7 @@ Enterprise Candidate-to-JD Matching and Recruitment Automation Engine
 import os
 import logging
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -110,7 +110,6 @@ def on_startup():
 # Health & Readiness Probes (for Cloud Run / AWS / Docker)
 # -----------------------------------------------------------------------------
 @app.get("/health", tags=["health"])
-@app.get("/", tags=["health"])
 def health_check():
     """Liveness probe: returns 200 if container is running."""
     return {"status": "healthy", "app": "RecruitIQ", "version": "2.2.0"}
@@ -132,3 +131,34 @@ def readiness_check():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "not_ready", "database": "disconnected"}
         )
+
+
+# -----------------------------------------------------------------------------
+# Frontend Static Asset & Single-Page Application (SPA) Serving
+# -----------------------------------------------------------------------------
+dist_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+if not os.path.exists(dist_dir):
+    dist_dir = os.path.join(os.getcwd(), "frontend", "dist")
+
+if os.path.exists(dist_dir) and os.path.exists(os.path.join(dist_dir, "index.html")):
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    assets_dir = os.path.join(dist_dir, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa_frontend(full_path: str):
+        # Don't intercept API / docs routes
+        if full_path in ["health", "ready", "docs", "openapi.json", "redoc"]:
+            raise HTTPException(status_code=404, detail="Not Found")
+        file_path = os.path.join(dist_dir, full_path)
+        if full_path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(dist_dir, "index.html"))
+else:
+    @app.get("/", tags=["health"])
+    def root_health():
+        return {"status": "healthy", "app": "RecruitIQ", "version": "2.2.0"}
+
