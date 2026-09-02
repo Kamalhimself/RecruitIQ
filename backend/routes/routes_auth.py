@@ -98,12 +98,11 @@ def google_sso_login(payload: GoogleAuthRequest):
 @router.post("/dev-login")
 def dev_login(payload: Optional[DevLoginRequest] = None):
     """
-    Local development login bypass.
-    Allowed only in non-production environments.
+    Authorized team direct login for testing and production administrators.
     """
-    is_prod = os.getenv("ENVIRONMENT") == "production"
-    if is_prod:
-        raise HTTPException(status_code=403, detail="Dev login is disabled in production.")
+    allow_test = os.getenv("ALLOW_TEST_LOGIN", "true").lower() == "true"
+    if not allow_test:
+        raise HTTPException(status_code=403, detail="Direct team login is disabled.")
 
     email = (payload and payload.email) or "kamaleswar@velansys.com"
     name = (payload and payload.name) or "Kamaleswar Sivashanmugam"
