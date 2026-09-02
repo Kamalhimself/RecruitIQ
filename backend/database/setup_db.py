@@ -20,6 +20,8 @@ load_dotenv()
 # Format: postgresql://<user>:<password>@<host>:<port>/<dbname>
 # ------------------------------------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:yourpassword@localhost:5432/recruitiq")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 
 def get_engine():
